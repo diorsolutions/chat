@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import io from "socket.io-client";
+import { io } from "socket.io-client";
 import styles from "./ChatPage.module.css";
 import ChatUsersInfo from "./ChatUsersInfo"; // ✅ yangi komponentni import qilamiz
 import io from "socket.io-client";
 
 
 // const socket = io(process.env.REACT_APP_SOCKET_SERVER);
-const socket = io(process.env.REACT_APP_SOCKET_SERVER); // avtomatik .env dan oladi
+const socket = io(process.env.REACT_APP_SOCKET_SERVER);// avtomatik .env dan oladi
 
 function ChatPage() {
   const navigate = useNavigate();
