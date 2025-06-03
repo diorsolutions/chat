@@ -1,0 +1,99 @@
+.container {
+    width: 100%;
+    height: 100%;
+    background-color: #101924cc;
+    color: white;
+    padding: 16px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    border-left: 1px solid #333;
+  }
+  
+  .title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 8px;
+  }
+  
+  .description {
+    font-size: 14px;
+    color: #ccc;
+    margin-bottom: 16px;
+  }
+  
+  .subtitle {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  
+  .userList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+  
+  .user {
+    padding: 6px 0;
+    font-size: 14px;
+    border-bottom: 1px solid #2a2a2a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .statusDot {
+    font-size: 12px;
+    margin-right: 4px;
+  }
+
+  .box_info {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    background-color: #333333ad;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0 0 15px 1px rgba(248, 248, 248, 0.26);
+    transition: all 0.3s ease;
+  }
+  .box_info img {
+    width: 70px;
+    height: 70px;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+    border-radius: 60px;
+    transition: all 0.3s ease;
+  }
+  .image_info_group {
+    width: 40%;
+    overflow: hidden;
+    border-radius: 60px;
+    height: 90%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* background-color: #fff; */
+  }
+  .box_info img:hover {
+    transform: scale(1.3);
+    transition: all 0.3s ease;
+  }
+  .container {
+    display: flex;
+    justify-content: start;
+    gap: 20px;
+    align-items: start;
+    flex-direction: column;
+  }
+  .box_info_users {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .box_info_users ul li {
+    text-transform: capitalize;
+  }
