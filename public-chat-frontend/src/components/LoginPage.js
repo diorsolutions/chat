@@ -1,46 +1,48 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../index.css";
-import styles from "./LoginPage.module.css"; // CSS faylini import qilish
+import styles from "./LoginPage.module.css";
 
 function LoginPage() {
   const navigate = useNavigate();
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false); // Loading state qo'shildi
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); // Formaning standart submit xatti-harakatini to'xtatish
-    setError(""); // Oldingi xatolarni tozalash
+    e.preventDefault();
+    setError("");
 
     if (!firstName || !lastName) {
       setError("Iltimos, ism va familiyangizni kiriting!");
       return;
     }
 
-    setLoading(true); // Yuklanishni boshlash
+    setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/verify-user", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ firstName, lastName }),
-      });
+      const response = await fetch(
+        `${process.env.REACT_APP_SOCKET_SeERVER}/verify-user`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ firstName, lastName }),
+        }
+      );
 
       const data = await response.json();
 
       if (response.ok) {
-        console.log("Tasdiqlash muvaffaqiyatli:", data);
         const loggedInUser = {
           firstName,
           lastName,
           username: `${firstName} ${lastName}`,
         };
-        localStorage.setItem("user", JSON.stringify(loggedInUser)); // Foydalanuvchi ma'lumotlarini localStorage ga saqlash
-        navigate("/chat"); // Chat sahifasiga yo'naltirish
+        localStorage.setItem("user", JSON.stringify(loggedInUser));
+        navigate("/chat");
       } else {
         setError(data.error || "Tasdiqlashda xatolik yuz berdi!");
       }
@@ -48,43 +50,46 @@ function LoginPage() {
       setError("Serverga ulanishda xatolik yuz berdi!");
       console.error("Xatolik:", error);
     } finally {
-      setLoading(false); // Yuklanishni yakunlash
+      setLoading(false);
     }
   };
 
   return (
-    <div className={styles.loginContainer}> {/* Asosiy konteyner klassi */}
-      <div className={styles.loginBox}> {/* Login qutisi klassi */}
-        <h2>Kirish</h2> {/* Sarlavha */}
-        <form onSubmit={handleSubmit}> {/* Formani onSubmit bilan bog'ladik */}
-          <div className={styles.userBox}> {/* Input va label uchun konteyner */}
+    <div className={styles.loginContainer}>
+      <div className={styles.loginBox}>
+        <h2>Kirish</h2>
+        <form onSubmit={handleSubmit}>
+          <div className={styles.userBox}>
             <input
               type="text"
               name="firstName"
-              required // Majburiy maydon
+              required
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
             />
-            <label>Ism</label> {/* Input ustidagi label */}
+            <label>Ism</label>
           </div>
-          <div className={styles.userBox}> {/* Input va label uchun konteyner */}
+          <div className={styles.userBox}>
             <input
               type="text"
               name="lastName"
-              required // Majburiy maydon
+              required
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
             />
-            <label>Familiya</label> {/* Input ustidagi label */}
+            <label>Familiya</label>
           </div>
-          {error && <p style={{ color: 'red', textAlign: 'center', marginBottom: '15px' }}>{error}</p>} {/* Xatolik xabari */}
-          <button type="submit" className={styles.loginButton} disabled={loading}> {/* Tugma klassi va loading holati */}
-            {/* Animatsiya uchun span elementlari */}
+          {error && (
+            <p style={{ color: "red", textAlign: "center", marginBottom: "15px" }}>
+              {error}
+            </p>
+          )}
+          <button type="submit" className={styles.loginButton} disabled={loading}>
             <span></span>
             <span></span>
             <span></span>
             <span></span>
-            {loading ? "Yuklanmoqda..." : "Kirish"} {/* Yuklanish matni */}
+            {loading ? "Yuklanmoqda..." : "Kirish"}
           </button>
         </form>
       </div>

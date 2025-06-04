@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
@@ -6,7 +7,7 @@ const { Server } = require("socket.io");
 const mongoose = require("mongoose");
 
 const app = express();
-const port = 5000;
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(bodyParser.json());
@@ -34,13 +35,13 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "*", // Vercel frontend manzilini qo‘shish mumkin
     methods: ["GET", "POST"],
   },
 });
 
 mongoose
-  .connect("mongodb://localhost:27017/public-chat", {
+  .connect(process.env.MONGO_URI, {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
@@ -54,12 +55,10 @@ const messageSchema = new mongoose.Schema({
 });
 
 const Message = mongoose.model("Message", messageSchema);
-
 const users = {};
 
-// ✅ Qo‘shilgan funksiya — barcha userlar ro‘yxatini yuborish
 const emitOnlineUsers = () => {
-  const userList = Object.values(users); // faqat username lar
+  const userList = Object.values(users);
   io.emit("update-users", userList);
 };
 
@@ -69,21 +68,18 @@ io.on("connection", (socket) => {
   socket.on("set-username", async ({ firstName, lastName }) => {
     const username = `${firstName} ${lastName}`;
     users[socket.id] = username;
-    console.log("Foydalanuvchi nomi o'rnatildi:", username);
-
     socket.emit("user-joined", {
       username,
       message: `Siz chatga qo'shildingiz`,
       type: "system",
     });
-
     socket.broadcast.emit("user-joined", {
       username,
       message: `${username} chatga qo'shildi`,
       type: "system",
     });
 
-    emitOnlineUsers(); // ✅ yangi userlar ro‘yxatini frontga yuborish
+    emitOnlineUsers();
 
     try {
       const last20Messages = await Message.find().sort({ timestamp: -1 }).limit(20).exec();
@@ -95,24 +91,19 @@ io.on("connection", (socket) => {
 
   socket.on("typing", () => {
     const username = users[socket.id];
-    if (username) {
-      socket.broadcast.emit("typing", { username });
-    }
+    if (username) socket.broadcast.emit("typing", { username });
   });
 
   socket.on("stop-typing", () => {
     const username = users[socket.id];
-    if (username) {
-      socket.broadcast.emit("stop-typing", { username });
-    }
+    if (username) socket.broadcast.emit("stop-typing", { username });
   });
 
   socket.on("new-message", async (text) => {
     const username = users[socket.id];
     if (!username || !text) return;
 
-    const newMessage = new Message({ username, text, timestamp: new Date() });
-
+    const newMessage = new Message({ username, text });
     try {
       await newMessage.save();
       io.emit("message", newMessage);
@@ -126,11 +117,11 @@ io.on("connection", (socket) => {
     if (username) {
       io.emit("user-left", { username, message: `${username} chatdan chiqdi` });
       delete users[socket.id];
-      emitOnlineUsers(); // ✅ user chiqsa — ro‘yxatni yangilash
+      emitOnlineUsers();
     }
   });
 });
 
-server.listen(port, () => {
-  console.log(`Server ${port} portida ishlayapti`);
+server.listen(PORT, () => {
+  console.log(`Server ${PORT} portida ishlayapti`);
 });
