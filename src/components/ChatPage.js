@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { io } from "socket.io-client"; // ✅ faqat shu kerak
+import io from "socket.io-client";
 import styles from "./ChatPage.module.css";
 import ChatUsersInfo from "./ChatUsersInfo";
+import MessageItem from "./MessageItem";
+import { Picker } from "emoji-mart";
+// import "emoji-mart/css/emoji-mart.css";
 
-
-// const socket = io(process.env.REACT_APP_SOCKET_SERVER);
-const socket = io(process.env.REACT_APP_SOCKET_SERVER);// avtomatik .env dan oladi
+const socket = io("http://localhost:5000");
 
 function ChatPage() {
   const navigate = useNavigate();
@@ -16,9 +17,10 @@ function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
   const [typingUsers, setTypingUsers] = useState([]);
-  const [onlineUsers, setOnlineUsers] = useState([]); // ✅ online users state
-
+  const [onlineUsers, setOnlineUsers] = useState([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const messagesEndRef = useRef(null);
+  const isFirstJoin = useRef(true);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -26,13 +28,7 @@ function ChatPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
-
-  useEffect(() => {
-    if (typingUsers.length > 0) {
-      scrollToBottom();
-    }
-  }, [typingUsers]);
+  }, [messages, typingUsers]);
 
   useEffect(() => {
     if (!user) {
@@ -40,155 +36,125 @@ function ChatPage() {
       return;
     }
 
-    socket.emit("set-username", user);
-
-    socket.on("last-20-messages", (lastMessages) => {
-      setMessages(lastMessages);
+    socket.emit("set-username", {
+      ...user,
+      joined: isFirstJoin.current,
     });
+    isFirstJoin.current = false;
 
-    const handleUserJoined = (data) => {
-      const isSelf = data.username === user.firstName + " " + user.lastName;
+    socket.on("last-20-messages", setMessages);
+
+    socket.on("user-joined", (data) => {
+      const isSelf = data.username === `${user.firstName} ${user.lastName}`;
       const messageText = isSelf
         ? `Siz chatga qo'shildingiz`
         : `${data.username} chatga qo'shildi`;
 
-      setMessages((prevMessages) => {
-        const alreadyExists = prevMessages.some(
+      setMessages((prev) => {
+        const exists = prev.some(
           (msg) => msg.type === "system" && msg.text === messageText
         );
-        if (!alreadyExists) {
-          return [...prevMessages, { text: messageText, type: "system" }];
-        }
-        return prevMessages;
+        return exists ? prev : [...prev, { text: messageText, type: "system" }];
       });
-    };
-
-    socket.on("user-joined", handleUserJoined);
+    });
 
     socket.on("message", (message) => {
-      setMessages((prevMessages) => [...prevMessages, message]);
+      setMessages((prev) => [...prev, message]);
     });
 
     socket.on("user-left", (data) => {
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { text: `${data.username} chatdan chiqdi`, type: "system" },
-      ]);
+      setMessages((prev) => [...prev, { text: data.message, type: "system" }]);
     });
 
     socket.on("typing", (data) => {
-      setTypingUsers((prev) => {
-        if (
-          !prev.includes(data.username) &&
-          data.username !== user.firstName + " " + user.lastName
-        ) {
-          return [...prev, data.username];
-        }
-        return prev;
-      });
+      const fullName = `${user.firstName} ${user.lastName}`;
+      if (data.username !== fullName && !typingUsers.includes(data.username)) {
+        setTypingUsers((prev) => [...prev, data.username]);
+      }
     });
 
     socket.on("stop-typing", (data) => {
       setTypingUsers((prev) => prev.filter((u) => u !== data.username));
     });
 
-    // ✅ online user listni yangilash
-    socket.on("update-users", (userList) => {
-      setOnlineUsers(userList);
+    socket.on("update-users", setOnlineUsers);
+
+    socket.on("reaction-updated", (updatedMessage) => {
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === updatedMessage._id ? updatedMessage : msg
+        )
+      );
     });
 
     return () => {
       socket.off("last-20-messages");
-      socket.off("user-joined", handleUserJoined);
+      socket.off("user-joined");
       socket.off("message");
       socket.off("user-left");
       socket.off("typing");
       socket.off("stop-typing");
       socket.off("update-users");
+      socket.off("reaction-updated");
     };
-  }, [navigate, user]);
+  }, [navigate, user, typingUsers]);
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    if (newMessage.trim() && user) {
+    if (newMessage.trim()) {
       socket.emit("new-message", newMessage.trim());
       setNewMessage("");
       socket.emit("stop-typing");
-    } else if (!user) {
-      console.error("Foydalanuvchi ma'lumotlari topilmadi!");
-      navigate("/");
+      setShowEmojiPicker(false); // Emoji pickerni yuborishdan keyin yopish
     }
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    setNewMessage((prev) => prev + emoji.native);
   };
 
   return (
     <div className={styles.chatWrapper}>
-      {/* Chat asosiy qismi */}
       <div className={styles.chatMain}>
         <div className={styles.messageList}>
-          {messages.map((msg, index) => (
-            <div
-              key={index}
-              className={`${styles.message} ${
-                msg.type === "system"
-                  ? styles.system
-                  : msg.username === user.firstName + " " + user.lastName
-                  ? styles.sent
-                  : styles.received
-              } ${
-                msg.username === user.firstName + " " + user.lastName
-                  ? styles.myMessage
-                  : ""
-              }`}
-            >
-              {msg.type !== "system" && (
-                <div
-                  className={styles.avatar}
-                  data-username={
-                    msg.username ? msg.username.charAt(0).toLowerCase() : ""
-                  }
-                >
-                  {msg.username ? msg.username.charAt(0).toUpperCase() : "?"}
-                </div>
-              )}
-              <div className={styles.messageContent}>
-                <span className={styles.username}>{msg.username}</span>
-                <span className={styles.text}>{msg.text}</span>
-                {msg.timestamp && (
-                  <span
-                    className={`${styles.timestamp} ${styles.messageTime} ${
-                      msg.username === user.firstName + " " + user.lastName
-                        ? styles.myTimestamp
-                        : ""
-                    }`}
-                  >
-                    {new Date(msg.timestamp).toLocaleTimeString()}
-                  </span>
-                )}
-              </div>
-            </div>
+          {messages.map((msg) => (
+            <MessageItem
+              key={msg._id || msg.timestamp || msg.text}
+              message={msg}
+              currentUser={`${user.firstName} ${user.lastName}`}
+              socket={socket}
+            />
           ))}
-
           {typingUsers.length > 0 && (
             <div className={styles.typingIndicator}>
               <span className={styles.typingEmoji}>✍️</span>
               <p>{typingUsers.join(", ")}</p>
             </div>
           )}
-
           <div ref={messagesEndRef} />
         </div>
 
         <form onSubmit={handleSendMessage} className={styles.inputContainer}>
+          <button
+            type="button"
+            onClick={() => setShowEmojiPicker((prev) => !prev)}
+            className={styles.emojiToggle}
+          >
+            😊
+          </button>
+
+          {showEmojiPicker && (
+            <div className={styles.emojiPicker}>
+              <Picker onSelect={handleEmojiSelect} />
+            </div>
+          )}
+
           <input
             type="text"
             value={newMessage}
             onChange={(e) => {
               setNewMessage(e.target.value);
-              if (e.target.value.trim() !== "") {
-                socket.emit("typing");
-              } else {
-                socket.emit("stop-typing");
-              }
+              socket.emit(e.target.value ? "typing" : "stop-typing");
             }}
             onBlur={() => socket.emit("stop-typing")}
             placeholder="Xabar yozing..."
@@ -200,7 +166,6 @@ function ChatPage() {
         </form>
       </div>
 
-      {/* O‘ngdagi user info panel */}
       <div className={styles.chatSidebar}>
         <ChatUsersInfo users={onlineUsers} />
       </div>
